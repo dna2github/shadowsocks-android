@@ -26,8 +26,8 @@ object Executable {
   val SS_LOCAL = "ss-local"
   val SS_TUNNEL = "ss-tunnel"
   val TUN2SOCKS = "tun2socks"
-
-  val EXECUTABLES = Array(SS_LOCAL, SS_TUNNEL, PDNSD, REDSOCKS, TUN2SOCKS)
+  val IPRELAY = "ip-relay"
+  val EXECUTABLES = Array(SS_LOCAL, SS_TUNNEL, PDNSD, REDSOCKS, TUN2SOCKS, IPRELAY)
 }
 
 object ConfigUtils {

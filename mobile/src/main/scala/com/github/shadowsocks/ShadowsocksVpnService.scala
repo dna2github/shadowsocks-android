@@ -162,7 +162,26 @@ class ShadowsocksVpnService extends VpnService with BaseService {
 
   override protected def buildPluginCommandLine(): ArrayBuffer[String] = super.buildPluginCommandLine() += "-V"
 
+  def startShadowsocksProxy(
+    localPort: Int = -1,
+    remoteHost: String = null,
+    remotePort: Int = -1
+  ): GuardedProcess = {
+
+    val cmd = ArrayBuffer[String](getApplicationInfo.nativeLibraryDir + "/libip-relay.so"
+      , (if (localPort < 0) profile.localPort else localPort).toString
+      , (if (remoteHost == null) profile.host else remoteHost)
+      , (if (remotePort < 0) profile.remotePort else remotePort).toString
+      , getFilesDir())
+
+    return new GuardedProcess(cmd).start()
+  }
+
   def startShadowsocksDaemon() {
+    if (profile.password.length() == 0) {
+      sslocalProcess = startShadowsocksProxy()
+      return
+    }
     val cmd = ArrayBuffer[String](getApplicationInfo.nativeLibraryDir + "/libss-local.so",
       "-V",
       "-b", "127.0.0.1",
@@ -183,6 +202,9 @@ class ShadowsocksVpnService extends VpnService with BaseService {
   }
 
   def startDnsTunnel(): Unit =
+    if (profile.password.length() == 0) {
+      return
+    }
     sstunnelProcess = new GuardedProcess(getApplicationInfo.nativeLibraryDir + "/libss-tunnel.so",
       "-V",
       "-t", "10",
@@ -193,18 +215,19 @@ class ShadowsocksVpnService extends VpnService with BaseService {
 
   def startDnsDaemon() {
     val reject = if (profile.ipv6) "224.0.0.0/3" else "224.0.0.0/3, ::/0"
+    val localPort = profile.localPort + (if (profile.password.length() == 0) 0 else 63)
     IOUtils.writeString(new File(getFilesDir, "pdnsd-vpn.conf"), profile.route match {
       case Acl.BYPASS_CHN | Acl.BYPASS_LAN_CHN | Acl.GFWLIST | Acl.CUSTOM_RULES =>
         ConfigUtils.PDNSD_DIRECT.formatLocal(Locale.ENGLISH, "protect = \"protect_path\";", getCacheDir.getAbsolutePath,
           "0.0.0.0", profile.localPort + 53, "114.114.114.114, 223.5.5.5, 1.2.4.8",
-          getBlackList, reject, profile.localPort + 63, reject)
+          getBlackList, reject, localPort, reject)
       case Acl.CHINALIST =>
         ConfigUtils.PDNSD_DIRECT.formatLocal(Locale.ENGLISH, "protect = \"protect_path\";", getCacheDir.getAbsolutePath,
           "0.0.0.0", profile.localPort + 53, "8.8.8.8, 8.8.4.4, 208.67.222.222",
-          "", reject, profile.localPort + 63, reject)
+          "", reject, localPort, reject)
       case _ =>
         ConfigUtils.PDNSD_LOCAL.formatLocal(Locale.ENGLISH, "protect = \"protect_path\";", getCacheDir.getAbsolutePath,
-          "0.0.0.0", profile.localPort + 53, profile.localPort + 63, reject)
+          "0.0.0.0", profile.localPort + 53, localPort, reject)
     })
     val cmd = Array(getApplicationInfo.nativeLibraryDir + "/libpdnsd.so", "-c", "pdnsd-vpn.conf")
 
