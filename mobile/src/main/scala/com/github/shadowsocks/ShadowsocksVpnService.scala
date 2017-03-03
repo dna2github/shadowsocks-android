@@ -172,9 +172,9 @@ class ShadowsocksVpnService extends VpnService with BaseService {
       , (if (localPort < 0) profile.localPort else localPort).toString
       , (if (remoteHost == null) profile.host else remoteHost)
       , (if (remotePort < 0) profile.remotePort else remotePort).toString
-      , getFilesDir())
+      , getFilesDir().getAbsolutePath())
 
-    return new GuardedProcess(cmd).start()
+    return new GuardedProcess(cmd: _*).start()
   }
 
   def startShadowsocksDaemon() {
